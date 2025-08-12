@@ -1,0 +1,111 @@
+<div class="app-container">
+  <header class="header">
+    <h1>📝 Mis Notas</h1>
+    <button class="btn btn-primary" (click)="createNote()">
+      ➕ Nueva Nota
+    </button>
+  </header>
+
+  <div class="main-content">
+    <!-- Lista de notas -->
+    <div class="notes-list">
+      <h2>Todas las Notas ({{ notes.length }})</h2>
+      
+      <div class="notes-grid" *ngIf="notes.length > 0; else noNotes">
+        <div 
+          *ngFor="let note of notes" 
+          class="note-card"
+          [class.selected]="selectedNote?.id === note.id"
+          (click)="selectNote(note)">
+          <h3>{{ note.title }}</h3>
+          <p class="note-preview">{{ note.content?.substring(0, 100) }}{{ note.content && note.content.length > 100 ? '...' : '' }}</p>
+          <small class="note-date">{{ formatDate(note.updated_at) }}</small>
+        </div>
+      </div>
+
+      <ng-template #noNotes>
+        <div class="empty-state">
+          <p>No tienes notas aún. ¡Crea tu primera nota!</p>
+        </div>
+      </ng-template>
+    </div>
+
+    <!-- Editor de notas -->
+    <div class="note-editor">
+      <!-- Crear nueva nota -->
+      <div *ngIf="isCreating" class="editor-content">
+        <div class="editor-header">
+          <h2>Nueva Nota</h2>
+          <div class="editor-actions">
+            <button class="btn btn-success" (click)="saveNote()" [disabled]="!newNote.title?.trim()">
+              💾 Guardar
+            </button>
+            <button class="btn btn-secondary" (click)="cancelEdit()">
+              ❌ Cancelar
+            </button>
+          </div>
+        </div>
+        
+        <input 
+          type="text" 
+          [(ngModel)]="newNote.title" 
+          placeholder="Título de la nota"
+          class="title-input">
+        
+        <textarea 
+          [(ngModel)]="newNote.content" 
+          placeholder="Escribe el contenido de tu nota aquí..."
+          class="content-textarea"></textarea>
+      </div>
+
+      <!-- Ver/Editar nota existente -->
+      <div *ngIf="selectedNote && !isCreating" class="editor-content">
+        <div class="editor-header">
+          <h2 *ngIf="!isEditing">{{ selectedNote.title }}</h2>
+          <div class="editor-actions">
+            <button *ngIf="!isEditing" class="btn btn-primary" (click)="editNote()">
+              ✏️ Editar
+            </button>
+            <button *ngIf="isEditing" class="btn btn-success" (click)="saveNote()" [disabled]="!selectedNote.title?.trim()">
+              💾 Guardar
+            </button>
+            <button *ngIf="isEditing" class="btn btn-secondary" (click)="cancelEdit()">
+              ❌ Cancelar
+            </button>
+            <button class="btn btn-danger" (click)="deleteNote()">
+              🗑️ Eliminar
+            </button>
+          </div>
+        </div>
+
+        <input 
+          *ngIf="isEditing"
+          type="text" 
+          [(ngModel)]="selectedNote.title" 
+          class="title-input">
+        
+        <div *ngIf="!isEditing" class="note-content">
+          <p>{{ selectedNote.content || 'Sin contenido' }}</p>
+        </div>
+        
+        <textarea 
+          *ngIf="isEditing"
+          [(ngModel)]="selectedNote.content" 
+          class="content-textarea"></textarea>
+
+        <div class="note-metadata">
+          <small>Creado: {{ formatDate(selectedNote.created_at) }}</small>
+          <small>Actualizado: {{ formatDate(selectedNote.updated_at) }}</small>
+        </div>
+      </div>
+
+      <!-- Estado inicial -->
+      <div *ngIf="!selectedNote && !isCreating" class="editor-placeholder">
+        <div class="placeholder-content">
+          <h3>Selecciona una nota para verla</h3>
+          <p>O crea una nueva nota usando el botón "Nueva Nota"</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

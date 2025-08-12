@@ -1,0 +1,10 @@
+# Terraform
+iac/terraform-key.json
+iac/.terraform/
+iac/*.tfstate
+iac/*.tfstate.backup
+
+# Node.js
+node_modules/
+dist/
+.env

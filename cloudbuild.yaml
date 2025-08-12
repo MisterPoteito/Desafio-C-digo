@@ -1,0 +1,73 @@
+steps:
+  # ------ Backend CI/CD ------
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Build Backend Image'
+    args:
+      - 'build'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/backend:$COMMIT_SHA'
+      - './backend'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Push Backend Image'
+    args:
+      - 'push'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/backend:$COMMIT_SHA'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'Deploy Backend'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'backend-service' # Nombre del servicio de Cloud Run
+      - '--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/backend:$COMMIT_SHA'
+      - '--region'
+      - '${_REGION}'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--service-account=${_RUN_SA_EMAIL}'
+      - '--vpc-connector=projects/$PROJECT_ID/locations/${_REGION}/connectors/main-vpc-connector'
+      - '--set-env-vars=DB_HOST=${_DB_HOST},DB_USER=app-user,DB_NAME=app-db'
+      - '--set-secrets=DB_PASS=db-password:latest'
+
+  # ------ Frontend CI/CD ------
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Build Frontend Image'
+    args:
+      - 'build'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/frontend:$COMMIT_SHA'
+      - './frontend'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Push Frontend Image'
+    args:
+      - 'push'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/frontend:$COMMIT_SHA'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'Deploy Frontend'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'frontend-service' # Nombre del servicio de Cloud Run
+      - '--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/frontend:$COMMIT_SHA'
+      - '--region'
+      - '${_REGION}'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      # Pasamos la URL del backend recién desplegado como variable de entorno
+      - '--set-env-vars=VITE_API_URL=https://backend-service-xxxx-uc.a.run.app' # Reemplazar con URL de salida del paso anterior
+
+images:
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/backend:$COMMIT_SHA'
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/frontend:$COMMIT_SHA'
+
+substitutions:
+  _REGION: 'us-central1'
+  _REPO_NAME: 'desafio-apps'
+  # Los siguientes valores los obtienes de la salida de Terraform
+  _RUN_SA_EMAIL: 'cloud-run-runtime-sa@desafio-queplan.iam.gserviceaccount.com'
+  _DB_HOST: '10.x.x.x' # <-- ¡IMPORTANTE! Reemplaza esto con la IP privada de tu DB
