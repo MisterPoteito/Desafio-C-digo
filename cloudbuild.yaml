@@ -20,7 +20,7 @@ steps:
     args:
       - 'run'
       - 'deploy'
-      - 'backend-service' # Nombre del servicio de Cloud Run
+      - 'backend-service'
       - '--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/backend:$COMMIT_SHA'
       - '--region'
       - '${_REGION}'
@@ -52,14 +52,13 @@ steps:
     args:
       - 'run'
       - 'deploy'
-      - 'frontend-service' # Nombre del servicio de Cloud Run
+      - 'frontend-service'
       - '--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/frontend:$COMMIT_SHA'
       - '--region'
       - '${_REGION}'
       - '--platform=managed'
       - '--allow-unauthenticated'
-      # Pasamos la URL del backend recién desplegado como variable de entorno
-      - '--set-env-vars=VITE_API_URL=https://backend-service-xxxx-uc.a.run.app' # Reemplazar con URL de salida del paso anterior
+      - '--set-env-vars=VITE_API_URL=https://backend-service-xxxx-uc.a.run.app'
 
 images:
   - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/backend:$COMMIT_SHA'
@@ -68,6 +67,5 @@ images:
 substitutions:
   _REGION: 'us-central1'
   _REPO_NAME: 'desafio-apps'
-  # Los siguientes valores los obtienes de la salida de Terraform
   _RUN_SA_EMAIL: 'cloud-run-runtime-sa@desafio-queplan.iam.gserviceaccount.com'
-  _DB_HOST: '10.x.x.x' # <-- ¡IMPORTANTE! Reemplaza esto con la IP privada de tu DB
+  _DB_HOST: '10.x.x.x'
