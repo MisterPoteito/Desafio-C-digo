@@ -157,3 +157,16 @@ resource "google_project_iam_member" "cloudbuild_iam_user" {
     google_project_service.apis["cloudbuild.googleapis.com"]
   ]
 }
+
+resource "google_project_iam_member" "cloudbuild_secret_accessor" {
+    project = var.project_id
+    role    = "roles/secretmanager.secretAccessor"
+    member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+}
+
+# Permisos para que Cloud Build pueda conectarse a Cloud SQL
+resource "google_project_iam_member" "cloudbuild_sql_client" {
+    project = var.project_id
+    role    = "roles/cloudsql.client"
+    member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+}

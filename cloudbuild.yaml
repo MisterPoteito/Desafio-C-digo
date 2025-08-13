@@ -14,6 +14,16 @@ steps:
       - 'push'
       - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/backend:$COMMIT_SHA'
 
+  - name: 'gcr.io/google-appengine/exec-wrapper'
+    id: 'Run DB Migration'
+    entrypoint: sh
+    args:
+      - '-c'
+      - |
+        apt-get update && apt-get install -y postgresql-client
+        DB_SECRET_PASS=$$(gcloud secrets versions access latest --secret=db-password --project=$PROJECT_ID)
+        PGPASSWORD=$$DB_SECRET_PASS psql -h ${_DB_HOST} -U app-user -d app-db -f /backend/migrations/01-init.sql
+
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'Deploy Backend'
     entrypoint: gcloud

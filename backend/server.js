@@ -8,54 +8,16 @@ const port = process.env.PORT || 3000;
 
 // Configuración de la base de datos
 const pool = new Pool({
-  user: process.env.DB_USER || 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'notes_db',
-  password: process.env.DB_PASSWORD || 'password',
-  port: process.env.DB_PORT || 5432,
+  user: process.env.DB_USER,
+  host: process.env.DB_HOST,
+  database: process.env.DB_NAME,
+  password: process.env.DB_PASS,
+  port: process.env.DB_PORT
 });
 
 // Middleware
 app.use(cors());
 app.use(express.json());
-
-// Crear tabla si no existe
-const initDB = async () => {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS note (
-        id SERIAL PRIMARY KEY,
-        title VARCHAR(255) NOT NULL,
-        content TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-    
-    // Crear trigger para actualizar updated_at automáticamente
-    await pool.query(`
-      CREATE OR REPLACE FUNCTION update_updated_at_column()
-      RETURNS TRIGGER AS $$
-      BEGIN
-        NEW.updated_at = CURRENT_TIMESTAMP;
-        RETURN NEW;
-      END;
-      $$ language 'plpgsql';
-    `);
-    
-    await pool.query(`
-      DROP TRIGGER IF EXISTS update_note_updated_at ON note;
-      CREATE TRIGGER update_note_updated_at
-        BEFORE UPDATE ON note
-        FOR EACH ROW
-        EXECUTE FUNCTION update_updated_at_column();
-    `);
-    
-    console.log('Base de datos inicializada correctamente');
-  } catch (err) {
-    console.error('Error inicializando la base de datos:', err);
-  }
-};
 
 // Rutas CRUD
 
