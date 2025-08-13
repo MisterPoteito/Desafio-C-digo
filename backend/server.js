@@ -114,11 +114,6 @@ app.delete('/api/notes/:id', async (req, res) => {
 });
 
 // Inicializar servidor
-const startServer = async () => {
-  await initDB();
-  app.listen(port, () => {
-    console.log(`Servidor corriendo en http://localhost:${port}`);
-  });
-};
-
-startServer();
+app.listen(port, () => {
+  console.log(`Servidor en ${port}`);
+});
