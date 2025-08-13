@@ -15,6 +15,7 @@ steps:
     args:
       - 'builds'
       - 'submit'
+      - '--peered-network=projects/${PROJECT_NUMBER}/global/networks/default'
       - '--config=./backend/migrations/cloudbuild-migration.yaml'
       - '--substitutions=_DB_HOST=${_DB_HOST}'
 
