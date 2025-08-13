@@ -28,7 +28,7 @@ steps:
       wget https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.10.1/cloud-sql-proxy.linux.amd64 -O cloud-sql-proxy
       chmod +x cloud-sql-proxy
 
-      # --- CORRECCIÓN: Crear el directorio para el socket ---
+      # --- Crear el directorio para el socket ---
       mkdir -p /workspace/cloudsql
 
       # 3. Iniciar el proxy en segundo plano (&) usando un socket Unix.
