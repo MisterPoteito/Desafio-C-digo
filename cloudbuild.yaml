@@ -32,7 +32,7 @@ steps:
       mkdir -p /workspace/cloudsql
 
       # 3. Iniciar el proxy en segundo plano (&) usando un socket Unix.
-      ./cloud-sql-proxy --unix-socket /workspace/cloudsql ${PROJECT_ID}:${_REGION}:desafio-db-instance &
+      ./cloud-sql-proxy --private-ip --unix-socket /workspace/cloudsql ${PROJECT_ID}:${_REGION}:desafio-db-instance &
       
       # 4. Esperar a que el proxy se inicie y cree el archivo del socket.
       sleep 5
