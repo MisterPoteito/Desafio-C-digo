@@ -170,3 +170,16 @@ resource "google_project_iam_member" "cloudbuild_sql_client" {
     role    = "roles/cloudsql.client"
     member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
 }
+
+resource "google_project_iam_member" "compute_sa_secret_accessor" {
+    project = var.project_id
+    role    = "roles/secretmanager.secretAccessor"
+    member  = "serviceAccount:552339327395-compute@developer.gserviceaccount.com"
+}
+
+# Permiso para conectarse a Cloud SQL
+resource "google_project_iam_member" "compute_sa_sql_client" {
+    project = var.project_id
+    role    = "roles/cloudsql.client"
+    member  = "serviceAccount:552339327395-compute@developer.gserviceaccount.com"
+}
