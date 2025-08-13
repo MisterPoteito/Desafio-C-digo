@@ -39,7 +39,7 @@ steps:
       
       # 5. Obtener la contraseña y ejecutar la migración.
       DB_SECRET_PASS=$$(gcloud secrets versions access latest --secret=db-password)
-      PGPASSWORD=$$DB_SECRET_PASS psql -h /workspace/cloudsql -U app-user -d app-db -f backend/migrations/01-init.sql
+      PGPASSWORD=$$DB_SECRET_PASS psql -h /workspace/cloudsql/${PROJECT_ID}:${_REGION}:desafio-db-instance -U app-user -d app-db -f backend/migrations/01-init.sql
 
   # ------ 3. Desplegar el Backend en Cloud Run ------
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
