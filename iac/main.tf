@@ -194,3 +194,10 @@ resource "google_cloudbuild_worker_pool" "private_pool" {
     peered_network = "projects/${var.project_id}/global/networks/default"
   }
 }
+
+# Permiso para que Cloud Build pueda ejecutar sub-builds
+resource "google_project_iam_member" "compute_sa_cloudbuild_editor" {
+    project = var.project_id
+    role    = "roles/cloudbuild.builds.editor"
+    member  = "serviceAccount:552339327395-compute@developer.gserviceaccount.com"
+}

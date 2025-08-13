@@ -1,0 +1,16 @@
+# Este es el "sub-build" que se ejecutará dentro de la VPC.
+
+steps:
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  entrypoint: 'sh'
+  args:
+  - '-c'
+  - |
+    apt-get update && apt-get install -y postgresql-client
+    DB_SECRET_PASS=$$(gcloud secrets versions access latest --secret=db-password)
+    PGPASSWORD=$$DB_SECRET_PASS psql -h ${_DB_HOST} -U app-user -d app-db -f backend/migrations/01-init.sql
+
+# Esta opción es la clave. Le dice a ESTE sub-build que se conecte a la red.
+options:
+  network:
+    name: 'projects/${PROJECT_NUMBER}/global/networks/default'

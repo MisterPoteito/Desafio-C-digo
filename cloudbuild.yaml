@@ -1,29 +1,24 @@
 steps:
-  # ------ Backend CI/CD ------
+  # ------ 1. Construir la imagen del Backend ------
   - name: 'gcr.io/cloud-builders/docker'
     id: 'Build Backend Image'
-    args:
-      - 'build'
-      - '-t'
-      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/backend:$COMMIT_SHA'
-      - './backend'
+    args: [ 'build', '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/backend:$COMMIT_SHA', './backend' ]
 
+  # ------ 2. Subir la imagen del Backend ------
   - name: 'gcr.io/cloud-builders/docker'
     id: 'Push Backend Image'
-    args:
-      - 'push'
-      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/backend:$COMMIT_SHA'
+    args: [ 'push', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/backend:$COMMIT_SHA' ]
 
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    id: 'Run DB Migration'
-    entrypoint: sh
+  # ------ 3. PASO DE MIGRACIÓN DE BASE DE DATOS ------
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Run DB Migration in VPC'
     args:
-      - '-c'
-      - |
-        apt-get update && apt-get install -y postgresql-client
-        DB_SECRET_PASS=$$(gcloud secrets versions access latest --secret=db-password --project=$PROJECT_ID)
-        PGPASSWORD=$$DB_SECRET_PASS psql -h ${_DB_HOST} -U app-user -d app-db -f backend/migrations/01-init.sql
+      - 'builds'
+      - 'submit'
+      - '--config=./backend/migrations/cloudbuild-migration.yaml'
+      - '--substitutions=_DB_HOST=${_DB_HOST}'
 
+  # ------ 4. Desplegar el Backend ------
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'Deploy Backend'
     entrypoint: gcloud
@@ -68,7 +63,7 @@ steps:
       - '${_REGION}'
       - '--platform=managed'
       - '--allow-unauthenticated'
-      - '--set-env-vars=VITE_API_URL=${_VITE_API_URL}'
+      - '--set-env-vars=_VITE_API_URL=${_VITE_API_URL}'
 
 images:
   - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/backend:$COMMIT_SHA'
@@ -79,6 +74,3 @@ substitutions:
   _REPO_NAME: 'desafio-apps'
   _RUN_SA_EMAIL: 'cloud-run-runtime-sa@desafio-queplan.iam.gserviceaccount.com'
   _DB_HOST: '10.78.0.5'
-
-options:
-  logging: CLOUD_LOGGING_ONLY
