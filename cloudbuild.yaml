@@ -1,5 +1,6 @@
 steps:
   # ------ Build & Push Backend ------
+  # Prueba
   - name: 'gcr.io/cloud-builders/docker'
     id: 'Build Backend Image'
     args: [ 'build', '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/backend:$COMMIT_SHA', './backend' ]
