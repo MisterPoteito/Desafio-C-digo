@@ -74,3 +74,6 @@ substitutions:
   _REPO_NAME: 'desafio-apps'
   _RUN_SA_EMAIL: 'cloud-run-runtime-sa@desafio-queplan.iam.gserviceaccount.com'
   _DB_HOST: '10.78.0.5'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
