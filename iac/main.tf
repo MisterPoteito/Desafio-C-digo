@@ -4,6 +4,11 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 4.0"
     }
+    # Añadimos el proveedor beta explícitamente aquí
+    google-beta = {
+      source  = "hashicorp/google-beta"
+      version = "~> 4.0"
+    }
   }
   backend "gcs" {
     bucket = "desafio-queplan-tfstate"
@@ -46,8 +51,6 @@ resource "google_service_networking_connection" "private_vpc_connection" {
   network                 = "projects/${var.project_id}/global/networks/default"
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
-
-  # Asegurarnos de que la API de Service Networking esté habilitada antes de intentar conectar
   depends_on = [google_project_service.apis["servicenetworking.googleapis.com"]]
 }
 
@@ -76,10 +79,7 @@ resource "google_sql_database_instance" "main_instance" {
     }
   }
   deletion_protection = false
-  depends_on          = [
-    google_project_service.apis,
-    google_service_networking_connection.private_vpc_connection
-    ]
+  depends_on          = [google_service_networking_connection.private_vpc_connection]
 }
 
 resource "google_sql_database" "default_db" {
@@ -96,8 +96,12 @@ resource "google_sql_user" "db_user" {
 # Secret Manager para la contraseña
 resource "google_secret_manager_secret" "db_password_secret" {
   secret_id = "db-password"
-  replication { automatic = true }
-  depends_on  = [google_project_service.apis]
+  
+  replication {
+    auto {}
+  }
+  
+  depends_on = [google_project_service.apis]
 }
 
 resource "google_secret_manager_secret_version" "db_password_version" {
@@ -118,70 +122,52 @@ resource "google_artifact_registry_repository" "app_repo" {
 resource "google_service_account" "cloud_run_sa" {
   account_id   = "cloud-run-runtime-sa"
   display_name = "Service Account for Cloud Run Services"
-  depends_on = [ 
-    google_project_service.apis["iam.googleapis.com"]
-   ]
+  depends_on = [google_project_service.apis["iam.googleapis.com"]]
 }
 
-# Permiso para conectar a Cloud SQL
+# Permisos para la SA de Cloud Run
 resource "google_project_iam_member" "sql_client" {
   project = var.project_id
   role    = "roles/cloudsql.client"
   member  = "serviceAccount:${google_service_account.cloud_run_sa.email}"
 }
 
-# Permiso para leer secretos
 resource "google_project_iam_member" "secret_accessor" {
   project = var.project_id
   role    = "roles/secretmanager.secretAccessor"
   member  = "serviceAccount:${google_service_account.cloud_run_sa.email}"
 }
 
-# IAM: Permisos para que Cloud Build pueda desplegar
+# IAM: Permisos para la SA por defecto de Cloud Build
 data "google_project" "project" {}
-
 resource "google_project_iam_member" "cloudbuild_cloudrun_admin" {
     project = var.project_id
     role    = "roles/run.admin"
     member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
-    depends_on = [
-    google_project_service.apis["cloudbuild.googleapis.com"]
-  ]
+    depends_on = [google_project_service.apis["cloudbuild.googleapis.com"]]
 }
-
 resource "google_project_iam_member" "cloudbuild_iam_user" {
     project = var.project_id
     role    = "roles/iam.serviceAccountUser"
     member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
-    depends_on = [
-    google_project_service.apis["cloudbuild.googleapis.com"]
-  ]
+    depends_on = [google_project_service.apis["cloudbuild.googleapis.com"]]
 }
 
-resource "google_project_iam_member" "cloudbuild_secret_accessor" {
-    project = var.project_id
-    role    = "roles/secretmanager.secretAccessor"
-    member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
-}
-
-# Permisos para que Cloud Build pueda conectarse a Cloud SQL
-resource "google_project_iam_member" "cloudbuild_sql_client" {
-    project = var.project_id
-    role    = "roles/cloudsql.client"
-    member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
-}
-
+# IAM: Permisos para la SA de Compute Engine que ejecuta builds
 resource "google_project_iam_member" "compute_sa_secret_accessor" {
     project = var.project_id
     role    = "roles/secretmanager.secretAccessor"
-    member  = "serviceAccount:552339327395-compute@developer.gserviceaccount.com"
+    member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
 }
-
-# Permiso para conectarse a Cloud SQL
 resource "google_project_iam_member" "compute_sa_sql_client" {
     project = var.project_id
     role    = "roles/cloudsql.client"
-    member  = "serviceAccount:552339327395-compute@developer.gserviceaccount.com"
+    member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
+resource "google_project_iam_member" "compute_sa_cloudbuild_editor" {
+    project = var.project_id
+    role    = "roles/cloudbuild.builds.editor"
+    member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
 }
 
 # --- Creación de un Worker Pool Privado para Cloud Build ---
@@ -189,15 +175,8 @@ resource "google_cloudbuild_worker_pool" "private_pool" {
   provider = google-beta
   name     = "private-pool-vpc"
   location = var.region
-  
   network_config {
-    peered_network = "projects/${var.project_id}/global/networks/default"
+    peered_network = google_service_networking_connection.private_vpc_connection.network
   }
-}
-
-# Permiso para que Cloud Build pueda ejecutar sub-builds
-resource "google_project_iam_member" "compute_sa_cloudbuild_editor" {
-    project = var.project_id
-    role    = "roles/cloudbuild.builds.editor"
-    member  = "serviceAccount:552339327395-compute@developer.gserviceaccount.com"
+  depends_on = [google_service_networking_connection.private_vpc_connection]
 }

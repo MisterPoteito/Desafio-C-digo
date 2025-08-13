@@ -7,13 +7,20 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Configuración de la base de datos
-const pool = new Pool({
+const dbConfig = {
   user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
   password: process.env.DB_PASS,
-  port: process.env.DB_PORT
-});
+  database: process.env.DB_NAME,
+};
+
+if (process.env.INSTANCE_CONNECTION_NAME) {
+  dbConfig.host = `/cloudsql/${process.env.INSTANCE_CONNECTION_NAME}`;
+} else {
+  dbConfig.host = process.env.DB_HOST || '127.0.0.1';
+  dbConfig.port = process.env.DB_PORT || 5432;
+}
+
+const pool = new Pool(dbConfig);
 
 // Middleware
 app.use(cors());

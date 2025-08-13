@@ -1,6 +1,5 @@
 steps:
-  # ------ Backend CI/CD ------
-  # ------ 1. Build & Push Backend ------
+  # ------ Build & Push Backend ------
   - name: 'gcr.io/cloud-builders/docker'
     id: 'Build Backend Image'
     args: [ 'build', '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/backend:$COMMIT_SHA', './backend' ]
@@ -9,18 +8,28 @@ steps:
     id: 'Push Backend Image'
     args: [ 'push', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/backend:$COMMIT_SHA' ]
 
-  # ------ 2. MIGRACIÓN DE BASE DE DATOS ------
+  # 1. Iniciar el Cloud SQL Proxy en segundo plano
+  - name: 'gcr.io/cloud-sql-connectors/cloud-sql-proxy'
+    id: 'Start Cloud SQL Proxy'
+    args:
+      - '${PROJECT_ID}:${_REGION}:desafio-db-instance'
+
+  # 2. Ejecutar la migración, conectándose al proxy en localhost
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'Run DB Migration'
     entrypoint: 'sh'
     args:
     - '-c'
     - |
+      # Esperar un par de segundos para que el proxy esté listo
+      sleep 5
       apt-get update && apt-get install -y postgresql-client
       DB_SECRET_PASS=$$(gcloud secrets versions access latest --secret=db-password)
-      PGPASSWORD=$$DB_SECRET_PASS psql -h ${_DB_HOST} -U app-user -d app-db -f backend/migrations/01-init.sql
+      # Conectarse a localhost (127.0.0.1), que es donde el proxy está escuchando
+      PGPASSWORD=$$DB_SECRET_PASS psql -h 127.0.0.1 -U app-user -d app-db -f backend/migrations/01-init.sql
+    waitFor: ['Start Cloud SQL Proxy']
 
-  # ------ 3. Deploy Backend ------
+  # ------ Deploy Backend ------
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'Deploy Backend'
     entrypoint: gcloud
@@ -34,10 +43,9 @@ steps:
       - '--platform=managed'
       - '--allow-unauthenticated'
       - '--service-account=${_RUN_SA_EMAIL}'
-      - '--vpc-connector=projects/$PROJECT_ID/locations/${_REGION}/connectors/main-vpc-connector'
-      - '--set-env-vars=DB_HOST=${_DB_HOST},DB_USER=app-user,DB_NAME=app-db'
+      - '--add-cloudsql-instances=${PROJECT_ID}:${_REGION}:desafio-db-instance'
+      - '--set-env-vars=DB_USER=app-user,DB_NAME=app-db'
       - '--set-secrets=DB_PASS=db-password:latest'
-
 
   # ------ Frontend CI/CD ------
   - name: 'gcr.io/cloud-builders/docker'
