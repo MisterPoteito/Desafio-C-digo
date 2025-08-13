@@ -14,3 +14,4 @@ steps:
 options:
   network:
     name: 'projects/${PROJECT_NUMBER}/global/networks/default'
+  logging: CLOUD_LOGGING_ONLY
