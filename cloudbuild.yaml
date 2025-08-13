@@ -1,25 +1,26 @@
 steps:
-  # ------ 1. Construir la imagen del Backend ------
+  # ------ Backend CI/CD ------
+  # ------ 1. Build & Push Backend ------
   - name: 'gcr.io/cloud-builders/docker'
     id: 'Build Backend Image'
     args: [ 'build', '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/backend:$COMMIT_SHA', './backend' ]
 
-  # ------ 2. Subir la imagen del Backend ------
   - name: 'gcr.io/cloud-builders/docker'
     id: 'Push Backend Image'
     args: [ 'push', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/backend:$COMMIT_SHA' ]
 
-  # ------ 3. PASO DE MIGRACIÓN DE BASE DE DATOS ------
-  - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'Run DB Migration in VPC'
+  # ------ 2. MIGRACIÓN DE BASE DE DATOS ------
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'Run DB Migration'
+    entrypoint: 'sh'
     args:
-      - 'builds'
-      - 'submit'
-      - '--peered-network=projects/${PROJECT_NUMBER}/global/networks/default'
-      - '--config=./backend/migrations/cloudbuild-migration.yaml'
-      - '--substitutions=_DB_HOST=${_DB_HOST}'
+    - '-c'
+    - |
+      apt-get update && apt-get install -y postgresql-client
+      DB_SECRET_PASS=$$(gcloud secrets versions access latest --secret=db-password)
+      PGPASSWORD=$$DB_SECRET_PASS psql -h ${_DB_HOST} -U app-user -d app-db -f backend/migrations/01-init.sql
 
-  # ------ 4. Desplegar el Backend ------
+  # ------ 3. Deploy Backend ------
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'Deploy Backend'
     entrypoint: gcloud
@@ -36,6 +37,7 @@ steps:
       - '--vpc-connector=projects/$PROJECT_ID/locations/${_REGION}/connectors/main-vpc-connector'
       - '--set-env-vars=DB_HOST=${_DB_HOST},DB_USER=app-user,DB_NAME=app-db'
       - '--set-secrets=DB_PASS=db-password:latest'
+
 
   # ------ Frontend CI/CD ------
   - name: 'gcr.io/cloud-builders/docker'
