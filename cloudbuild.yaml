@@ -82,6 +82,5 @@ substitutions:
 
 options:
   logging: CLOUD_LOGGING_ONLY
-
-network:
+  network:
     name: 'projects/${PROJECT_NUMBER}/global/networks/default'
