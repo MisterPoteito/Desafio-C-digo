@@ -58,7 +58,7 @@ steps:
       - '${_REGION}'
       - '--platform=managed'
       - '--allow-unauthenticated'
-      - '--set-env-vars=VITE_API_URL=https://backend-service-xxxx-uc.a.run.app'
+      - '--set-env-vars=VITE_API_URL=${_VITE_API_URL}'
 
 images:
   - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/backend:$COMMIT_SHA'
@@ -68,4 +68,4 @@ substitutions:
   _REGION: 'us-central1'
   _REPO_NAME: 'desafio-apps'
   _RUN_SA_EMAIL: 'cloud-run-runtime-sa@desafio-queplan.iam.gserviceaccount.com'
-  _DB_HOST: '10.x.x.x'
+  _DB_HOST: '10.78.0.5'
