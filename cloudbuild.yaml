@@ -40,7 +40,7 @@ steps:
       - '--service-account=${_RUN_SA_EMAIL}'
       - '--vpc-connector=projects/$PROJECT_ID/locations/${_REGION}/connectors/main-vpc-connector'
       - '--set-env-vars=DB_HOST=${_DB_HOST},DB_USER=app-user,DB_NAME=app-db'
-      - '--set-secrets=DB_PASSWORD=db-password:latest'
+      - '--set-secrets=DB_PASS=db-password:latest'
 
   # ------ Frontend CI/CD ------
   - name: 'gcr.io/cloud-builders/docker'
