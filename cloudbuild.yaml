@@ -21,17 +21,20 @@ steps:
     args:
     - '-c'
     - |
-      # 1. Instalar las herramientas necesarias: wget y postgresql-client
+      # 1. Instalar las herramientas necesarias
       apt-get update && apt-get install -y wget postgresql-client
       
       # 2. Descargar y hacer ejecutable el Cloud SQL Proxy
       wget https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.10.1/cloud-sql-proxy.linux.amd64 -O cloud-sql-proxy
       chmod +x cloud-sql-proxy
 
+      # --- CORRECCIÓN: Crear el directorio para el socket ---
+      mkdir -p /workspace/cloudsql
+
       # 3. Iniciar el proxy en segundo plano (&) usando un socket Unix.
       ./cloud-sql-proxy --private-ip --unix-socket /workspace/cloudsql ${PROJECT_ID}:${_REGION}:desafio-db-instance &
       
-      # 4. Esperar unos segundos para asegurar que el socket del proxy esté listo.
+      # 4. Esperar a que el proxy se inicie y cree el archivo del socket.
       sleep 5
       
       # 5. Obtener la contraseña y ejecutar la migración.
