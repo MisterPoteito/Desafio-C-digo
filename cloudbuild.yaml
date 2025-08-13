@@ -1,36 +1,43 @@
 steps:
-  # ------ Build & Push Backend ------
-  # Prueba
+  # ------ 1. Build & Push Backend ------
   - name: 'gcr.io/cloud-builders/docker'
     id: 'Build Backend Image'
-    args: [ 'build', '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/backend:$COMMIT_SHA', './backend' ]
+    args: 
+      - 'build'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/backend:$COMMIT_SHA'
+      - './backend'
 
   - name: 'gcr.io/cloud-builders/docker'
     id: 'Push Backend Image'
-    args: [ 'push', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/backend:$COMMIT_SHA' ]
-
-  # 1. Iniciar el Cloud SQL Proxy en segundo plano
-  - name: 'gcr.io/cloud-sql-connectors/cloud-sql-proxy'
-    id: 'Start Cloud SQL Proxy'
     args:
-      - '${PROJECT_ID}:${_REGION}:desafio-db-instance'
+      - 'push'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/backend:$COMMIT_SHA'
 
-  # 2. Ejecutar la migración, conectándose al proxy en localhost
+  # ------ 2. Iniciar Proxy y Ejecutar Migración de DB ------
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    id: 'Run DB Migration'
+    id: 'Start Proxy and Run Migration'
     entrypoint: 'sh'
     args:
     - '-c'
     - |
-      # Esperar un par de segundos para que el proxy esté listo
+      # 1. Descargar y hacer ejecutable el Cloud SQL Proxy
+      wget https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.10.1/cloud-sql-proxy.linux.amd64 -O cloud-sql-proxy
+      chmod +x cloud-sql-proxy
+
+      # 2. Iniciar el proxy en segundo plano (&) usando un socket Unix.
+      # El socket se creará en /workspace/cloudsql, un directorio temporal disponible en Cloud Build.
+      ./cloud-sql-proxy --private-ip --unix-socket /workspace/cloudsql ${PROJECT_ID}:${_REGION}:desafio-db-instance &
+      
+      # 3. Esperar unos segundos para asegurar que el socket del proxy esté listo y escuchando.
       sleep 5
+      
+      # 4. Instalar psql y ejecutar la migración conectándose al socket del proxy.
       apt-get update && apt-get install -y postgresql-client
       DB_SECRET_PASS=$$(gcloud secrets versions access latest --secret=db-password)
-      # Conectarse a localhost (127.0.0.1), que es donde el proxy está escuchando
-      PGPASSWORD=$$DB_SECRET_PASS psql -h 127.0.0.1 -U app-user -d app-db -f backend/migrations/01-init.sql
-    waitFor: ['Start Cloud SQL Proxy']
+      PGPASSWORD=$$DB_SECRET_PASS psql -h /workspace/cloudsql -U app-user -d app-db -f backend/migrations/01-init.sql
 
-  # ------ Deploy Backend ------
+  # ------ 3. Desplegar el Backend en Cloud Run ------
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'Deploy Backend'
     entrypoint: gcloud
@@ -48,7 +55,7 @@ steps:
       - '--set-env-vars=DB_USER=app-user,DB_NAME=app-db'
       - '--set-secrets=DB_PASS=db-password:latest'
 
-  # ------ Frontend CI/CD ------
+  # ------ 4. Build & Push Frontend ------
   - name: 'gcr.io/cloud-builders/docker'
     id: 'Build Frontend Image'
     args:
@@ -63,6 +70,7 @@ steps:
       - 'push'
       - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/frontend:$COMMIT_SHA'
 
+  # ------ 5. Desplegar el Frontend en Cloud Run ------
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'Deploy Frontend'
     entrypoint: gcloud
@@ -76,16 +84,6 @@ steps:
       - '--platform=managed'
       - '--allow-unauthenticated'
       - '--set-env-vars=_VITE_API_URL=${_VITE_API_URL}'
-
-images:
-  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/backend:$COMMIT_SHA'
-  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/frontend:$COMMIT_SHA'
-
-substitutions:
-  _REGION: 'us-central1'
-  _REPO_NAME: 'desafio-apps'
-  _RUN_SA_EMAIL: 'cloud-run-runtime-sa@desafio-queplan.iam.gserviceaccount.com'
-  _DB_HOST: '10.78.0.5'
 
 options:
   logging: CLOUD_LOGGING_ONLY
