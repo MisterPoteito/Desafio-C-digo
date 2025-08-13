@@ -23,6 +23,7 @@ steps:
         apt-get update && apt-get install -y postgresql-client
         DB_SECRET_PASS=$$(gcloud secrets versions access latest --secret=db-password --project=$PROJECT_ID)
         PGPASSWORD=$$DB_SECRET_PASS psql -h ${_DB_HOST} -U app-user -d app-db -f backend/migrations/01-init.sql
+    network: 'projects/${PROJECT_NUMBER}/global/netwrorks/default'
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'Deploy Backend'
@@ -39,7 +40,7 @@ steps:
       - '--service-account=${_RUN_SA_EMAIL}'
       - '--vpc-connector=projects/$PROJECT_ID/locations/${_REGION}/connectors/main-vpc-connector'
       - '--set-env-vars=DB_HOST=${_DB_HOST},DB_USER=app-user,DB_NAME=app-db'
-      - '--set-secrets=DB_PASS=db-password:latest'
+      - '--set-secrets=DB_PASSWORD=db-password:latest'
 
   # ------ Frontend CI/CD ------
   - name: 'gcr.io/cloud-builders/docker'
