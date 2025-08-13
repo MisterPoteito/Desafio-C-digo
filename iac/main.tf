@@ -183,3 +183,14 @@ resource "google_project_iam_member" "compute_sa_sql_client" {
     role    = "roles/cloudsql.client"
     member  = "serviceAccount:552339327395-compute@developer.gserviceaccount.com"
 }
+
+# --- Creación de un Worker Pool Privado para Cloud Build ---
+resource "google_cloudbuild_worker_pool" "private_pool" {
+  provider = google-beta
+  name     = "private-pool-vpc"
+  location = var.region
+  
+  network_config {
+    peered_network = "projects/${var.project_id}/global/networks/default"
+  }
+}
